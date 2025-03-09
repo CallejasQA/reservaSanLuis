@@ -1,0 +1,26 @@
+<!-- public/dashboard.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - reservaSanLuis</title>
+</head>
+<body>
+    <h2>Dashboard</h2>
+    <div id="content"></div>
+
+    <script>
+        async function fetchDashboard() {
+            const response = await fetch('/dashboard');
+            const result = await response.json();
+            const content = document.getElementById('content');
+            if(response.ok) {
+                content.textContent = result.message;
+            } else {
+                content.textContent = result.message;
+            }
+        }
+        fetchDashboard();
+    </script>
+</body>
+</html>
