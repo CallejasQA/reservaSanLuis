@@ -1,0 +1,9 @@
+
+
+>subir cambios<
+git add .
+git commit -m "Descripción de los cambios"
+git push
+
+>arracar servidor<
+node server.js

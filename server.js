@@ -3,15 +3,14 @@ const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
 const path = require('path');
+const mysql = require('mysql2/promise'); // Utilizamos la versión con promesas
 
 const app = express();
 const PORT = 3000;
 
-// Middleware para parsear JSON y datos de formularios
+// Middlewares para parsear JSON y datos de formularios
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Servir archivos estáticos desde la carpeta "public"
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Configuración de sesiones
@@ -21,36 +20,38 @@ app.use(session({
     saveUninitialized: false,
 }));
 
-// Usuario de ejemplo: 
-// Usuario y contraseña: "reservaSanLuis"
-// La contraseña se ha hasheado con bcrypt (salt rounds = 10)
-const users = [
-    {
-        id: 1,
-        email: "reservaSanLuis@xx.com",
-        password: "$2b$10$8Rfq8H30gk0dAZP7joJDY.GiWxoQQs7vLHXkRcDev6awKrNTVTcKS"
-    }
-];
-
-// Ruta POST para login
-app.post('/login', async (req, res) => {
-    const { email, password } = req.body;
-    const user = users.find(u => u.email === email);
-    if (!user) {
-        return res.status(401).json({ message: 'Usuario o contraseña incorrectos' });
-    }
-
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-        return res.status(401).json({ message: 'Usuario o contraseña incorrectos' });
-    }
-
-    // Almacenar el id del usuario en la sesión
-    req.session.userId = user.id;
-    return res.json({ message: 'Login exitoso', userId: user.id });
+// Crear un pool de conexiones a la base de datos
+const pool = mysql.createPool({
+  host: 'localhost',
+  user: 'root',       // Reemplaza con tu usuario de MySQL
+  password: '', // Reemplaza con tu contraseña de MySQL
+  database: 'reservaSanLuis'
 });
 
-// Ruta para obtener datos del dashboard (usuario autenticado)
+// Endpoint de login utilizando la base de datos
+app.post('/login', async (req, res) => {
+    const { email, password } = req.body;
+    try {
+        // Consulta para obtener el usuario por email
+        const [rows] = await pool.query("SELECT * FROM users WHERE email = ?", [email]);
+        if (rows.length === 0) {
+            return res.status(401).json({ message: 'Usuario o contraseña incorrectos' });
+        }
+        const user = rows[0];
+        const match = await bcrypt.compare(password, user.password);
+        if (!match) {
+            return res.status(401).json({ message: 'Usuario o contraseña incorrectos' });
+        }
+        // Guardamos el ID del usuario en la sesión
+        req.session.userId = user.id;
+        return res.json({ message: 'Login exitoso', userId: user.id });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: 'Error en el servidor' });
+    }
+});
+
+// Endpoint para el dashboard (usuario autenticado)
 app.get('/dashboard', (req, res) => {
     if (req.session.userId) {
         return res.json({ message: 'Bienvenido al dashboard', userId: req.session.userId });
